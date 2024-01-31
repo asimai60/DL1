@@ -1,0 +1,5 @@
+# Ignore .mat files
+*.mat
+
+# Ignore GPTSGD.py file
+GPTSGD.py
