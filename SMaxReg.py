@@ -1,6 +1,6 @@
 import numpy as np
 
-def softmax(X, W):
+def softmax_function(X, W):
     """
     Compute the softmax function for each row of the input x with the given weights W.
 
@@ -18,12 +18,13 @@ def softmax(X, W):
 
     Notes
     -----
-    The softmax function is applied to the dot product of the transpose of X and W.
+    The softmax function is applied to the dot product of X and W.
     """
-    dot_product = np.dot(X, W)
-    stabilized_dot_product = dot_product - np.max(dot_product, axis=1, keepdims=True)
+    dot_product = np.dot(X,W)
+    
+    stabilized_dot_product = dot_product - (np.max(dot_product, axis=0, keepdims=True))
     exp_stabilized_dot_product = np.exp(stabilized_dot_product)
-    return exp_stabilized_dot_product / np.sum(exp_stabilized_dot_product, axis=1, keepdims=True)
+    return exp_stabilized_dot_product / np.sum(exp_stabilized_dot_product, axis=0, keepdims=True)
 
 def softmax_loss(X, Y, W):
     """
@@ -37,7 +38,7 @@ def softmax_loss(X, Y, W):
         Label matrix where each row represents the one-hot encoded labels for a corresponding sample in X.
     W : numpy.ndarray
         Weight matrix corresponding to the features in X.
-
+ 
     Returns
     -------
     float
@@ -47,9 +48,10 @@ def softmax_loss(X, Y, W):
     -----
     This function computes the negative log likelihood of the true labels, given the predictions made by softmax.
     """
-    return -np.sum(np.log(softmax(X, W))*Y) / X.shape[0]
+    s_value = softmax_function(X, W)
+    return -np.sum(np.log(s_value)*Y) / X.shape[0]
 
-def softmax_grad(X, Y, W):
+def softmax_loss_grad(X, Y, W):
     """
     Compute the gradient of the softmax loss function with respect to the weight matrix W.
 
@@ -71,5 +73,6 @@ def softmax_grad(X, Y, W):
     -----
     This function computes the gradient needed for updating the weight matrix W in gradient-based optimization algorithms.
     """
-    probabilities = softmax(X, W)
-    return X.dot(probabilities - Y) / X.shape[0]
+    probabilities = softmax_function(X, W)
+    return X.T.dot(probabilities - Y) / X.shape[0]
+
