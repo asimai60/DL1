@@ -20,13 +20,13 @@ def softmax_function(X, W):
     -----
     The softmax function is applied to the dot product of X and W.
     """
-    dot_product = np.dot(X,W)
+    dot_product = np.dot(X,W) #(samples, classes)
     
-    stabilized_dot_product = dot_product - (np.max(dot_product, axis=0, keepdims=True))
-    exp_stabilized_dot_product = np.exp(stabilized_dot_product)
-    return exp_stabilized_dot_product / np.sum(exp_stabilized_dot_product, axis=0, keepdims=True)
+    stabilized_dot_product = dot_product - (np.max(dot_product, axis=1, keepdims=True)) #stabilize the dot product to avoid overflow (samples, classes)
+    exp_stabilized_dot_product = np.exp(stabilized_dot_product) #exponentiate the stabilized dot product (samples, classes)
+    return exp_stabilized_dot_product / np.sum(exp_stabilized_dot_product, axis=1, keepdims=True) #return the softmax output (samples, classes)
 
-def softmax_loss(X, Y, W):
+def softmax_loss(X, Y, W): 
     """
     Calculate the softmax loss for a given set of predictions, labels, and weights.
 
@@ -48,8 +48,9 @@ def softmax_loss(X, Y, W):
     -----
     This function computes the negative log likelihood of the true labels, given the predictions made by softmax.
     """
-    s_value = softmax_function(X, W)
-    return -np.sum(np.log(s_value)*Y) / X.shape[0]
+    s_value = softmax_function(X, W) #get the softmax output (samples, classes)
+    log_likelihood_times_Y = np.log(s_value)*Y
+    return -np.sum(log_likelihood_times_Y) / X.shape[0] #return the softmax loss averaged over all samples in X ()
 
 def softmax_loss_grad(X, Y, W):
     """
