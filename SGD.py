@@ -1,9 +1,9 @@
 import numpy as np
-from least_squares import least_squares
 
 # SGD
 def sgd(X, y, objective_function : callable, learning_rate=0.01, iterations=100, minibatchsize=10):
-    w = np.zeros(X.shape[1])
+    shape = (X.shape[1], y.shape[1]) if len(y.shape) > 1 else X.shape[1]
+    w = np.random.rand(*shape)
     costs = []
 
     for epoch in range(iterations):
@@ -23,6 +23,7 @@ def sgd(X, y, objective_function : callable, learning_rate=0.01, iterations=100,
             # Compute cost and gradient for the batch
             cost, gradient = objective_function(X_batch, y_batch, w)
             w -= learning_rate * gradient  # Update weights
+            # print(f"Cost: {cost}, Gradient: {gradient}") if epoch % 100 == 0 else None
 
         # Store the cost for this iteration after going through all the batches
         costs.append(cost)

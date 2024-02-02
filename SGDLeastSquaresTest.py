@@ -5,6 +5,9 @@ from least_squares import least_squares
 
 #A small least squares example
 #np.random.seed(0)
+
+
+
 X = np.random.randn(100, 2)
 w_true = np.array([1.5, -0.5])
 y = X.dot(w_true) + np.random.randn(100) * 0.5 # Add some noise
@@ -22,4 +25,5 @@ plt.plot(costs_minibatch)
 plt.xlabel('Iteration')
 plt.ylabel('Cost')
 plt.title('Cost reduction over iterations using SGD with minibatches')
+plt.savefig('SGDLeastSquaresTest.png')
 plt.show()

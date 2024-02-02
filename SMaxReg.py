@@ -77,3 +77,5 @@ def softmax_loss_grad(X, Y, W):
     probabilities = softmax_function(X, W)
     return X.T.dot(probabilities - Y) / X.shape[0]
 
+def softmax_cost_and_grad(X, Y, W):
+    return softmax_loss(X, Y, W), softmax_loss_grad(X, Y, W)
