@@ -1,14 +1,25 @@
 import numpy as np
-import SGD
+import matplotlib.pyplot as plt
+from SGD import sgd
+from least_squares import least_squares
 
-def objective_function(weights, x):
-    return weights * x
+#A small least squares example
+#np.random.seed(0)
+X = np.random.randn(100, 2)
+w_true = np.array([1.5, -0.5])
+y = X.dot(w_true) + np.random.randn(100) * 0.5 # Add some noise
 
-weights = np.random.uniform(-5, 5)
+# Parameters
+learning_rate = 0.01
+iterations = 100
+batch_size = 10  # Size of the minibatch
 
-data = np.random.uniform(-5, 5, 1000)
-actual_data = objective_function(weights, data)
+# Run SGD optimizer with minibatches
+w_opt_minibatch, costs_minibatch = sgd(X, y, least_squares, learning_rate, iterations, batch_size)
 
-final_weights = SGD.sgd(weights, objective_function, data, epochs=50, Mb_amount=40, Lr=0.01)
-
-print(f"Actual weights: {weights}" + f"\nFinal weights: {final_weights}")
+# Plotting the optimization process with minibatches
+plt.plot(costs_minibatch)
+plt.xlabel('Iteration')
+plt.ylabel('Cost')
+plt.title('Cost reduction over iterations using SGD with minibatches')
+plt.show()
