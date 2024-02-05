@@ -1,3 +1,4 @@
+import copy
 import numpy as np
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
@@ -144,9 +145,10 @@ class NNinstance:
         Parameters:
         - Y (np.array): Correct labels, shape (number of samples,).
         
-        Returns:
+        Returns:S
         - float: Computed loss.
         """
+
         
         Y_encoded = np.eye(self.A.shape[0])[Y].T
         m = Y_encoded.shape[1]
@@ -188,7 +190,7 @@ class NNinstance:
         return self.grads
     
     
-def NNsgd(NN : NNinstance ,X,Y, learning_rate=0.01, iterations=100, minibatchsize=10):
+def NNsgd(NN : NNinstance ,X,Y, learning_rate=0.01, iterations=100, minibatchsize=10, DEBUG_WEIGHTS = False):
     """
     Perform Stochastic Gradient Descent (SGD) optimization on the neural network instance.
     
@@ -205,8 +207,14 @@ def NNsgd(NN : NNinstance ,X,Y, learning_rate=0.01, iterations=100, minibatchsiz
     - list: List of loss values computed at the end of each iteration.
     """
     losses = []
-    for key in NN.parameters:
-        print("SGD start:","weight of ",key, ": ", NN.parameters[key])
+
+    if DEBUG_WEIGHTS:
+        initial_weights = NN.parameters
+
+        for key in NN.parameters:
+            initial_weights[key] =  copy.deepcopy(NN.parameters[key])
+            print("SGD start:","weight of ",key, ":\n", NN.parameters[key])
+
     for epoch in range(iterations):
         data = X.T
         labels = Y
@@ -219,7 +227,7 @@ def NNsgd(NN : NNinstance ,X,Y, learning_rate=0.01, iterations=100, minibatchsiz
         gradient = 0 # test
         for start_idx in range(0, X.shape[0], minibatchsize):
             mini_batch_loss = 0
-            end_idx = min(start_idx + minibatchsize, X.shape[0])
+            end_idx = min(start_idx + minibatchsize, X.shape[1])
             X_batch = shuffled_data[start_idx:end_idx].T
             y_batch = shuffled_labels[start_idx:end_idx]
 
@@ -228,7 +236,7 @@ def NNsgd(NN : NNinstance ,X,Y, learning_rate=0.01, iterations=100, minibatchsiz
             NN.backward_propagation(y_batch)
             
             # Update weights and biases
-            for l in range(1, NN.num_layers):
+            for l in range(1, NN.num_layers+1):
                 NN.parameters['W' + str(l)] -= learning_rate * NN.grads['dW' + str(l)]
                 NN.parameters['b' + str(l)] -= learning_rate * NN.grads['db' + str(l)] 
 
@@ -238,8 +246,14 @@ def NNsgd(NN : NNinstance ,X,Y, learning_rate=0.01, iterations=100, minibatchsiz
         # Store the loss for this iteration after going through all the batches
         loss = loss / ((X.shape[1] / minibatchsize))
         losses.append(loss)
-    for key in NN.parameters:
-        print("SGD end:", "weight of ",key, ": ", NN.parameters[key])
+
+    if DEBUG_WEIGHTS:
+        for key in NN.parameters:
+            print("SGD end:", "weight of ",key, ":\n", NN.parameters[key])
+        
+        for key in NN.parameters:
+            weights_difference_documnetation = initial_weights[key] - NN.parameters[key]
+            print("Difference in weights ", key, ":\n", weights_difference_documnetation)
         
     return NN, losses
 
@@ -254,8 +268,8 @@ input_size = X.shape[0]  # Number of features
 num_samples = X.shape[1]  # Number of samples
 
 #running the algorithm
-NN = NNinstance(input_size, output_size=2,num_layers=3)
-NN, losses = NNsgd(NN, X, Y, learning_rate=0.01, iterations=10000, minibatchsize=100)
+NN = NNinstance(input_size, output_size=2,num_layers=5)
+NN, losses = NNsgd(NN, X, Y, learning_rate=0.01, iterations=1000, minibatchsize=100, DEBUG_WEIGHTS = False)
 
 #testing on the validation set
 X_val = np.array(mat['Yv'])
