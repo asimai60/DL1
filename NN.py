@@ -84,7 +84,7 @@ class NNinstance:
         - dict: Dictionary containing initialized weights and biases.
         """
         
-        np.random.seed(1)  # Ensure consistent initialization
+        # np.random.seed(1)  # Ensure consistent initialization
         parameters = {}
         
         # Initialize weights and biases for all hidden layers
@@ -205,7 +205,8 @@ def NNsgd(NN : NNinstance ,X,Y, learning_rate=0.01, iterations=100, minibatchsiz
     - list: List of loss values computed at the end of each iteration.
     """
     losses = []
-    print("SGD start:", "weight:", NN.parameters['W1'])
+    for key in NN.parameters:
+        print("SGD start:","weight of ",key, ": ", NN.parameters[key])
     for epoch in range(iterations):
         data = X.T
         labels = Y
@@ -235,14 +236,15 @@ def NNsgd(NN : NNinstance ,X,Y, learning_rate=0.01, iterations=100, minibatchsiz
         
 
         # Store the loss for this iteration after going through all the batches
-        loss = loss / ((X.shape[0] / minibatchsize))
+        loss = loss / ((X.shape[1] / minibatchsize))
         losses.append(loss)
-    print("SGD end:", "weight:", NN.parameters['W1'])
+    for key in NN.parameters:
+        print("SGD end:", "weight of ",key, ": ", NN.parameters[key])
         
     return NN, losses
 
 
-
+#loading and preprocessing data
 mat = loadmat('SwissRollData.mat')
 X = np.array(mat['Yt'])
 Y = np.array(mat['Ct']).T
@@ -251,21 +253,25 @@ Y = np.array(Y)
 input_size = X.shape[0]  # Number of features
 num_samples = X.shape[1]  # Number of samples
 
+#running the algorithm
 NN = NNinstance(input_size, output_size=2,num_layers=3)
-NN, losses = NNsgd(NN, X, Y, learning_rate=0.0001, iterations=10000, minibatchsize=100)
-# parameters = initialize_parameters(input_size, output_size=2,num_layers=10)  # Ensure output size matches number of classes
-# A, caches = forward_propagation(X, parameters, num_layers=10)
-# loss = compute_nll_loss(Y, A)
-# grads = backward_propagation(Y, A, caches, parameters, num_layers=10)
+NN, losses = NNsgd(NN, X, Y, learning_rate=0.01, iterations=10000, minibatchsize=100)
 
-# print("NLL Loss:", losses)
-# print("Gradients:")
-# for key, value in NN.grads.items():
-#     print(key,":\n", value)
+#testing on the validation set
+X_val = np.array(mat['Yv'])
+Y_val = np.array(mat['Cv']).T
+Y_val = [int(i[1]) for i in Y_val]
+Y_val = np.array(Y_val)
+A, caches = NN.forward_propagation(X_val)
+print("Predicted:" , A.argmax(axis=0))
+print("Actual:", Y_val)
+print("Accuracy:", np.mean(A.argmax(axis=0) == Y_val))
+print("Loss:", losses[-1])
+
 
 plt.plot(losses)
 plt.xlabel('Iteration')
 plt.ylabel('Cost')
 plt.title('Cost reduction over iterations using SGD')
-# plt.savefig('SGDSoftMaxTest.png')
+
 plt.show()
