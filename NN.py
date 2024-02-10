@@ -14,7 +14,7 @@ def softmax(Z):
     return expZ / np.sum(expZ, axis=1, keepdims=True)
 
 class NN:
-    def __init__(self, input_size, hidden_size, output_size, num_layers):
+    def __init__(self, input_size, output_size, hidden_size = 6, num_layers=4):
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.output_size = output_size
@@ -142,7 +142,7 @@ def last_layer_gradient_check(epsilon = 0.5):
     hidden_size = 3
     output_size = 2
     num_layers = 1
-    nn = NN(input_size, hidden_size, output_size, num_layers)
+    nn = NN(input_size, output_size, hidden_size, num_layers)
 
     A, caches = nn.last_layer_forward(X,{})
     original_loss = nn.compute_loss(Y, A)
@@ -192,7 +192,7 @@ def full_gradient_check(epsilon = 0.5):
     output_size = 2
     num_layers = 3
 
-    nn = NN(input_size, hidden_size, output_size, num_layers)
+    nn = NN(input_size, output_size, hidden_size, num_layers)
     A = nn.forward_propagation(X)
     original_loss = nn.compute_loss(Y)
     grads = nn.backward_propagation(Y)
@@ -269,54 +269,95 @@ def NNSGD(nn : NN, X, Y, learning_rate=0.1, num_iterations=100, mini_batch_size=
         
 
 def main():
+    choice = input("Enter 1 for NN test, 2 for last layer gradient check, 3 for full gradient check: ")
+    if choice == "1" or choice == "3" or choice == "":   
+        path = input("Enter the path to the data: ")
+        if path == "":
+            path = 'SwissRollData'
+        mat = loadmat(path + '.mat')
+        X = np.array(mat['Yt'])
+        Y = np.array(mat['Ct']).T
 
-    mat = loadmat('SwissRollData.mat')
-    X = np.array(mat['Yt'])
-    Y = np.array(mat['Ct']).T
+        user_defined = input("Enter 1 to use user defined parameters, 0 to use default: ") == "1"
 
-    input_size = X.shape[0]
-    hidden_size = 6
-    output_size = Y.shape[1]
-    num_layers = 4
+        
 
-    #works great with 4 layers and 6 hidden units, 0.1 learning rate, 100 iterations
-    nn = NN(input_size, hidden_size, output_size, num_layers)
-    NNSGD(nn, X, Y)
+        input_size = X.shape[0]
+        hidden_size = 6
+        
+        output_size = Y.shape[1]
+        num_layers = 4
+
+        if user_defined:
+            hidden_layer_user_size = input("Enter the number of hidden neuron per layer (enter for default): ")
+            layer_number_user_size = input("Enter the number of layers (enter for default): ")
+
+            if hidden_layer_user_size != "":
+                hidden_size = int(hidden_layer_user_size)
+            if layer_number_user_size != "":
+                num_layers = int(layer_number_user_size)
+
+        #works great with 4 layers and 6 hidden units, 0.1 learning rate, 100 iterations
+        nn = NN(input_size, output_size, hidden_size, num_layers)
+        if choice == "1" or choice == "":
+            whole_data = input("Enter 1 to train on the whole data, 2 to use 200 random data points: ")
+            if whole_data == "2":
+                indices = np.random.permutation(X.shape[1])
+                X = np.array(X[:, indices[:200]])
+                Y = np.array(Y[indices[:200], :])
+
+            if user_defined:
+                learning_rate = float(input("Enter the learning rate (enter for default): "))
+                num_iterations = int(input("Enter the number of iterations (enter for default): "))
+                mini_batch_size = int(input("Enter the mini batch size (enter for default): "))
+                if learning_rate == "":
+                    learning_rate = 0.1
+                if num_iterations == "":
+                    num_iterations = 100
+                if mini_batch_size == "":
+                    mini_batch_size = 30
+                NNSGD(nn, X, Y, learning_rate, num_iterations, mini_batch_size)
+            else:
+                NNSGD(nn, X, Y)
+            
+            #testing on the validation set
+            X = np.array(mat['Yv'])
+            Y = np.array(mat['Cv']).T
+            A = nn.forward_propagation(X)
+            loss = nn.compute_loss(Y)
+            print(loss)
+
+            # preds = np.argmax(A, axis=1)
+            # true = np.argmax(Y, axis=1)
+            # diff = np.abs(preds - true)
+            # diff_indices = [i for i, x in enumerate(diff) if x == 1]
+            # print(f"Number of misclassified samples: {len(diff_indices)}")
+            # print("the indexes are: ", diff_indices)
+
+            print("Predicted: ", np.argmax(A, axis=1))
+            print("True: ", np.argmax(Y, axis=1))
+            print("Accuracy: ", np.mean(np.argmax(A, axis=1) == np.argmax(Y, axis=1)))
+            return
+        else:
+            full_gradient_check()
+            return
     
-    #testing on the validation set
-    X = np.array(mat['Yv'])
-    Y = np.array(mat['Cv']).T
-    A = nn.forward_propagation(X)
-    loss = nn.compute_loss(Y)
-    print(loss)
+    elif choice == "2":
 
-    # preds = np.argmax(A, axis=1)
-    # true = np.argmax(Y, axis=1)
-    # diff = np.abs(preds - true)
-    # diff_indices = [i for i, x in enumerate(diff) if x == 1]
-    # print(f"Number of misclassified samples: {len(diff_indices)}")
-    # print("the indexes are: ", diff_indices)
+        last_layer_gradient_check()
+        
+        # X = np.array([[1, 2], [3, 4], [5, 6]]).T  # 3 samples, 2 features each
+        # Y = np.array([[1, 0], [0, 1], [1, 0]])  # One-hot encoded labels for 3 samples, 2 classes
+        # input_size = 2
+        # hidden_size = 6
+        # output_size = 2
+        # num_layers = 6
+        # nn = NN(input_size, hidden_size, output_size, num_layers)
+        # A = nn.forward_propagation(X)
+        # loss = nn.compute_loss(Y)
+        # print(loss)
+        # grads = nn.backward_propagation(Y)
+        # # print(grads)
 
-    print("Predicted: ", np.argmax(A, axis=1))
-    print("True: ", np.argmax(Y, axis=1))
-    print("Accuracy: ", np.mean(np.argmax(A, axis=1) == np.argmax(Y, axis=1)))
-
-
-    
-    # full_gradient_check()
-    return
-
-    X = np.array([[1, 2], [3, 4], [5, 6]]).T  # 3 samples, 2 features each
-    Y = np.array([[1, 0], [0, 1], [1, 0]])  # One-hot encoded labels for 3 samples, 2 classes
-    input_size = 2
-    hidden_size = 6
-    output_size = 2
-    num_layers = 6
-    nn = NN(input_size, hidden_size, output_size, num_layers)
-    A = nn.forward_propagation(X)
-    loss = nn.compute_loss(Y)
-    print(loss)
-    grads = nn.backward_propagation(Y)
-    print(grads)
-
-main()
+if __name__ == "__main__":
+    main()
