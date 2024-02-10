@@ -1,8 +1,13 @@
 # Ignore .mat files
 *.mat
 
+*.png
+
 # Ignore GPTSGD.py file
 GPTSGD.py
 NNGradTest.py
 1test.py
 test1.py
+
+# ignore oldNN folder
+oldNN/

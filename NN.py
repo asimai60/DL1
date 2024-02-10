@@ -1,291 +1,322 @@
-import copy
 import numpy as np
-from scipy.io import loadmat
 import matplotlib.pyplot as plt
-
-
+from scipy.io import loadmat
 
 
 def tanh(Z):
-    """
-    Calculate the hyperbolic tangent of each element in the input array Z.
-    
-    Parameters:
-    - Z (np.array): Input array of any shape.
-    
-    Returns:
-    - np.array: The hyperbolic tangent of each element in Z, same shape as Z.
-    """
     return np.tanh(Z)
 
-def softmax(Z):
-    """
-    Compute the softmax function for each column of the input array Z.
-    
-    Parameters:
-    - Z (np.array): Input array where each column represents a set of scores for a classification task.
-    
-    Returns:
-    - np.array: Softmax probabilities, same shape as Z, with values representing probabilities that sum to 1 across each column.
-    """
-    e_Z = np.exp(Z - np.max(Z, axis=0, keepdims=True))
-    return e_Z / e_Z.sum(axis=0, keepdims=True)
-
-def tanh_derivative(Z):
-    """
-    Calculate the derivative of the hyperbolic tangent function for each element in the input array Z.
-    
-    Parameters:
-    - Z (np.array): Input array of any shape.
-    
-    Returns:
-    - np.array: Derivative of the hyperbolic tangent of each element in Z, same shape as Z.
-    """
+def tanh_deriv(Z):
     return 1 - np.tanh(Z)**2
 
+def softmax(Z):
+    expZ = np.exp(Z - np.max(Z , axis=1, keepdims=True))
+    return expZ / np.sum(expZ, axis=1, keepdims=True)
 
-
-class NNinstance:
-    """
-    A neural network instance for classification tasks.
-    
-    Attributes:
-    - input_size (int): Size of the input layer.
-    - output_size (int): Size of the output layer.
-    - num_layers (int): Total number of layers in the network.
-    - hidden_layer_size (int): Size of each hidden layer.
-    - parameters (dict): Weights and biases for each layer.
-    - A (np.array): Activations of the last layer after forward propagation.
-    - caches (dict): Intermediate values for backward propagation.
-    - loss (float): Current loss of the network.
-    - grads (dict): Gradients of weights and biases.
-    """
-    def __init__(self, input_size, output_size, num_layers=3, hidden_layer_size=6):
+class NN:
+    def __init__(self, input_size, hidden_size, output_size, num_layers):
         self.input_size = input_size
+        self.hidden_size = hidden_size
         self.output_size = output_size
         self.num_layers = num_layers
-        self.hidden_layer_size = hidden_layer_size
-        self.parameters = self.initialize_parameters(input_size, hidden_layer_size, output_size, num_layers)
         self.A = None
         self.caches = None
-        self.loss = None
         self.grads = None
+        self.loss = 0
+        self.parameters = {}
+        self.initiate_parameters()
 
-    def initialize_parameters(self, input_size, hidden_layer_size=6, output_size=2, num_layers=3):
-        """
-        Initialize the weights and biases of the network.
-        
-        Parameters:
-        - input_size (int): Size of the input layer.
-        - hidden_layer_size (int, optional): Size of each hidden layer, default is 6.
-        - output_size (int): Size of the output layer.
-        - num_layers (int): Total number of layers.
-        
-        Returns:
-        - dict: Dictionary containing initialized weights and biases.
-        """
-        
-        # np.random.seed(1)  # Ensure consistent initialization
-        parameters = {}
-        
-        # Initialize weights and biases for all hidden layers
-        for l in range(1, num_layers):
-            parameters['W' + str(l)] = np.random.randn(hidden_layer_size, input_size if l == 1 else hidden_layer_size)
-            parameters['W' + str(l)] = parameters['W' + str(l)] / np.linalg.norm(parameters['W' + str(l)], ord=2)
-            parameters['b' + str(l)] = np.zeros((hidden_layer_size, 1))
-        
-        # Initialize weights and biases for the output layer
-        parameters['W' + str(num_layers)] = np.random.randn(output_size, hidden_layer_size)
-        parameters['W' + str(num_layers)] = parameters['W' + str(num_layers)] / np.linalg.norm(parameters['W' + str(num_layers)], ord=2)
-        parameters['b' + str(num_layers)] = np.zeros((output_size, 1))
-        
-        return parameters
+    def initiate_parameters(self):
+        self.parameters['W1'] = np.random.randn(self.hidden_size, self.input_size) if self.num_layers > 1 else np.random.randn(self.output_size, self.input_size)
+        self.parameters['b1'] = np.zeros((self.hidden_size, 1)) if self.num_layers > 1 else np.zeros((1, self.output_size))
+        for i in range(2, self.num_layers):
+            self.parameters['W' + str(i)] = np.random.randn(self.hidden_size, self.hidden_size)
+            self.parameters['b' + str(i)] = np.zeros((self.hidden_size, 1))
+        if self.num_layers > 1:
+            self.parameters['W' + str(self.num_layers)] = np.random.randn(self.hidden_size, self.output_size)
+        self.parameters['b' + str(self.num_layers)] = np.zeros((1, self.output_size))
+        for key in self.parameters:
+            if key[0] == 'W':
+                self.parameters[key] = self.parameters[key] / np.linalg.norm(self.parameters[key])
 
     def forward_propagation(self, X):
-        """
-        Perform forward propagation through the network.
-        
-        Parameters:
-        - X (np.array): Input data, shape (input_size, number of samples).
-        
-        Returns:
-        - np.array: Output of the last layer (softmax probabilities).
-        - dict: Caches containing intermediate values for backward propagation.
-        """
         caches = {}
         caches['A0'] = X
         A = X
-        for l in range(1, self.num_layers):
-            W = self.parameters['W' + str(l)]
-            b = self.parameters['b' + str(l)]
-            
-            Z = np.dot(W, A) + b
-            A = tanh(Z)  # Use tanh for hidden layers
-            
-            caches['Z' + str(l)] = Z
-            caches['A' + str(l)] = A
-        
-        # Output layer with softmax
-        W = self.parameters['W' + str(self.num_layers)]
-        b = self.parameters['b' + str(self.num_layers)]
-        Z = np.dot(W, A) + b
-        A = softmax(Z)  # Softmax for the output layer
+        for layer in range(1,self.num_layers):
+            A, caches = self.hidden_layer_forward(A,layer,caches)
+
+        A, caches = self.last_layer_forward(A, caches)
+
         self.A = A
-        
-        caches['Z' + str(self.num_layers)] = Z
-        caches['A' + str(self.num_layers)] = A
         self.caches = caches
-    
-        return self.A , caches
-    
-    def compute_nll_loss(self, Y):
-        """
-        Compute the negative log likelihood loss.
-        
-        Parameters:
-        - Y (np.array): Correct labels, shape (number of samples,).
-        
-        Returns:S
-        - float: Computed loss.
-        """
 
-        
-        Y_encoded = np.eye(self.A.shape[0])[Y].T
-        m = Y_encoded.shape[1]
-        log_likelihood = -np.log(self.A[Y, range(m)])
-        self.loss = np.sum(log_likelihood) / m
+        return A
 
-        return self.loss
+    def compute_loss(self, Y, A=None):
+        if A is None:
+            A = self.A
+        log_likelihood = np.log(A) * Y
+        loss = -np.sum(log_likelihood, axis=1, keepdims=True)
+        loss = np.mean(loss)
+        return loss # might need to average this loss
     
     def backward_propagation(self, Y):
-        """
-        Perform backward propagation to compute gradients.
-        
-        Parameters:
-        - Y (np.array): Correct labels, shape (number of samples,).
-        
-        Returns:
-        - dict: Gradients of weights and biases.
-        """
         grads = {}
-        Y_encoded = np.eye(self.A.shape[0])[Y].T
-        m = Y_encoded.shape[1]  # One-hot encode Y
-        
-        # Derivative of NLL Loss w.r.t. softmax inputs
-        dZ = self.A - Y_encoded
-        
-        for l in reversed(range(1, self.num_layers + 1)):
-            A_prev = self.caches['A' + str(l-1)] if l > 1 else self.caches['A0']
-            dW = np.dot(dZ, A_prev.T) / m
-            db = np.sum(dZ, axis=1, keepdims=True) / m
-            
-            if l > 1:
-                W = self.parameters['W' + str(l)]
-                dZ = np.dot(W.T, dZ) * tanh_derivative(self.caches['Z' + str(l-1)])
-            
-            grads['dW' + str(l)] = dW
-            grads['db' + str(l)] = db
-        
+
+        dZ = self.A - Y
+        A_prev = self.caches['A' + str(self.num_layers - 1)]
+
+        samples = A_prev.shape[1]
+
+        W_last = self.parameters['W' + str(self.num_layers)]
+        dW_last = np.dot(A_prev, dZ)/samples
+        db_last = np.sum(dZ, axis=0, keepdims=True)/samples
+
+        grads['dW' + str(self.num_layers)] = dW_last
+        grads['db' + str(self.num_layers)] = db_last
+
+        dZ = np.dot(W_last, dZ.T)/samples
+
+        for layer in reversed(range(1, self.num_layers)):
+            A_prev = self.caches['A' + str(layer - 1)]
+            Z = self.caches['Z' + str(layer)]
+
+            dW = np.dot((tanh_deriv(Z) * dZ), A_prev.T) # should we average this?
+            db = np.sum(tanh_deriv(Z) * dZ, axis=1, keepdims=True)
+
+            grads['dW' + str(layer)] = dW
+            grads['db' + str(layer)] = db
+
+            if layer > 1:
+                W = self.parameters['W' + str(layer)]
+                dZ = np.dot(W.T, (tanh_deriv(Z) * dZ))
+    
         self.grads = grads
-        return self.grads
+        return grads
     
+    def hidden_layer_forward(self, A, layer,caches, perturb=None):
+        W = self.parameters['W' + str(layer)]
+        b = self.parameters['b' + str(layer)]
+        Z = np.dot(W, A) + b
+        A = tanh(Z)
+        caches['Z' + str(layer)] = Z
+        caches['A' + str(layer)] = A
+        return A, caches
     
-def NNsgd(NN : NNinstance ,X,Y, learning_rate=0.01, iterations=100, minibatchsize=10, DEBUG_WEIGHTS = False):
-    """
-    Perform Stochastic Gradient Descent (SGD) optimization on the neural network instance.
+    def last_layer_forward(self, A, caches ,perturb=None, epsilon = 0.5):
+        W = self.parameters['W' + str(self.num_layers)]
+        b = self.parameters['b' + str(self.num_layers)]
+        if perturb is not None:
+            W = W + epsilon * perturb['W']
+            b = b + epsilon * perturb['b']
+
+        Z = np.dot(A.T, W) + b
+        A = softmax(Z)
+        caches['Z' + str(self.num_layers)] = Z
+        caches['A' + str(self.num_layers)] = A
+        return A, caches
     
-    Parameters:
-    - NN (NNinstance): Neural network instance to be optimized.
-    - X (np.array): Input data, shape (input_size, number of samples).
-    - Y (np.array): Correct labels, shape (number of samples,).
-    - learning_rate (float, optional): Learning rate for the optimization, default is 0.01.
-    - iterations (int, optional): Number of iterations to run the optimization for, default is 100.
-    - minibatchsize (int, optional): Size of each minibatch for SGD, default is 10.
+    def last_layer_backward(self, Y, A, X, caches):
+        grads = {}
+
+        dZ = A - Y
+        A_prev = X
+
+        samples = A_prev.shape[1]
+
+        dW_last = np.dot(A_prev, dZ)/samples
+        db_last = np.sum(dZ, axis=0, keepdims=True)/samples
+
+        grads['dW' + str(self.num_layers)] = dW_last
+        grads['db' + str(self.num_layers)] = db_last
+        return grads
+
+
+def last_layer_gradient_check(epsilon = 0.5):
     
-    Returns:
-    - NNinstance: Updated neural network instance after performing SGD.
-    - list: List of loss values computed at the end of each iteration.
-    """
+    epsilons = [epsilon**(i+1) for i in range(10)]
+    X = np.array([[1, 2], [3, 4], [5, 6]]).T  # 3 samples, 2 features each
+    Y = np.array([[1, 0], [0, 1], [1, 0]])  # One-hot encoded labels for 3 samples, 2 classes
+    input_size = 2
+    hidden_size = 3
+    output_size = 2
+    num_layers = 1
+    nn = NN(input_size, hidden_size, output_size, num_layers)
+
+    A, caches = nn.last_layer_forward(X,{})
+    original_loss = nn.compute_loss(Y, A)
+    pertrubations = {}
+    pertrubations['W'] = np.random.randn(*nn.parameters['W1'].shape)
+    pertrubations['W'] /= np.linalg.norm(pertrubations['W'])
+    pertrubations['b'] = np.random.randn(*nn.parameters['b1'].shape)
+    pertrubations['b'] /= np.linalg.norm(pertrubations['b'])
+
+    linear_error = []
+    quadratic_error = []
+    grads = nn.last_layer_backward(Y, A, X, caches)
+    analytical_grads_w = np.dot(pertrubations['W'].flatten(), grads['dW1'].flatten())
+    analytical_grads_b = np.dot(pertrubations['b'].flatten(), grads['db1'].flatten())
+    total_analytical_grad = analytical_grads_w + analytical_grads_b
+
+    for epsilon in epsilons:
+        A, caches = nn.last_layer_forward(X, {}, perturb=pertrubations, epsilon=epsilon)
+        loss = nn.compute_loss(Y, A)
+        linear_error.append(np.abs(loss - original_loss))
+        quadratic_error.append(np.abs(loss - original_loss - total_analytical_grad * epsilon))
+        print(f"Epsilon: {epsilon}, Linear Error: {linear_error[-1]}, Quadratic Error: {quadratic_error[-1]}")
+    
+    iterations = [i for i in range(1, len(epsilons) + 1)]
+    plt.figure(figsize=(10, 6))
+    plt.plot(iterations, linear_error, label='Linear Error')
+    plt.plot(iterations, quadratic_error, label='Quadratic Error')
+    plt.yscale('log')
+    plt.xlabel('iteration')
+    plt.ylabel('Error')
+    plt.title('last layer Gradient Test Errors (Including Bias)')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+    return
+
+def hidden_layer_jacobian_check(epsilon = 0.5):
+    return
+
+def full_gradient_check(epsilon = 0.5):
+    epsilons = [epsilon**(i+1) for i in range(10)]
+    X = np.array([[1, 2], [3, 4], [5, 6]]).T  # 3 samples, 2 features each
+    Y = np.array([[1, 0], [0, 1], [1, 0]])  # One-hot encoded labels for 3 samples, 2 classes
+    input_size = 2
+    hidden_size = 3
+    output_size = 2
+    num_layers = 3
+
+    nn = NN(input_size, hidden_size, output_size, num_layers)
+    A = nn.forward_propagation(X)
+    original_loss = nn.compute_loss(Y)
+    grads = nn.backward_propagation(Y)
+
+    pertrubations = {}
+    for layer in range(1, num_layers+1):
+        pertrubations['W' + str(layer)] = np.random.randn(*nn.parameters['W' + str(layer)].shape)
+        pertrubations['W' + str(layer)] /= np.linalg.norm(pertrubations['W' + str(layer)])
+        pertrubations['b' + str(layer)] = np.random.randn(*nn.parameters['b' + str(layer)].shape)
+        pertrubations['b' + str(layer)] /= np.linalg.norm(pertrubations['b' + str(layer)])
+    
+    linear_error = []
+    quadratic_error = []
+    total_analytical_grad = 0
+    for layer in range(1, num_layers+1):
+        analytical_grads_w = np.dot(pertrubations['W' + str(layer)].flatten(), grads['dW' + str(layer)].flatten())
+        analytical_grads_b = np.dot(pertrubations['b' + str(layer)].flatten(), grads['db' + str(layer)].flatten())
+        total_analytical_grad += analytical_grads_w + analytical_grads_b
+
+    for epsilon in epsilons:
+        for key in nn.parameters:
+            nn.parameters[key] += epsilon * pertrubations[key]
+        A = nn.forward_propagation(X)
+        pertrubed_loss = nn.compute_loss(Y, A)
+        linear_error.append(np.abs(pertrubed_loss - original_loss))
+        quadratic_error.append(np.abs(pertrubed_loss - original_loss - total_analytical_grad * epsilon))
+        print(f"Epsilon: {epsilon}, Linear Error: {linear_error[-1]}, Quadratic Error: {quadratic_error[-1]}")
+
+        for key in nn.parameters:
+            nn.parameters[key] -= epsilon * pertrubations[key]
+
+    iterations = [i for i in range(1, len(epsilons) + 1)]
+    plt.figure(figsize=(10, 6))
+    plt.plot(iterations, linear_error, label='Linear Error')
+    plt.plot(iterations, quadratic_error, label='Quadratic Error')
+    plt.yscale('log')
+    plt.xlabel('iteration')
+    plt.ylabel('Error')
+    plt.title('full network Gradient Test Errors')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+def NNSGD(nn : NN, X, Y, learning_rate=0.1, num_iterations=100, mini_batch_size=30):
     losses = []
-
-    if DEBUG_WEIGHTS:
-        initial_weights = NN.parameters
-
-        for key in NN.parameters:
-            initial_weights[key] =  copy.deepcopy(NN.parameters[key])
-            print("SGD start:","weight of ",key, ":\n", NN.parameters[key])
-
-    for epoch in range(iterations):
-        data = X.T
-        labels = Y
-        indices = np.arange(data.shape[0])
-        np.random.shuffle(indices)
-        shuffled_data = data[indices]
-        shuffled_labels = labels[indices]
+    for iter in range(num_iterations):
+        indices = np.random.permutation(X.shape[1])
+        shuffled_X = np.array(X[:, indices])
+        shuffled_Y = np.array(Y[indices, :])
+        current_loss = 0
+        for i in range(0, X.shape[1], mini_batch_size):
+            X_mini = shuffled_X[:, i:i+mini_batch_size]
+            Y_mini = shuffled_Y[i:i+mini_batch_size, :]
+           
+            mini_batch_A = nn.forward_propagation(X_mini)
+            current_loss += nn.compute_loss(Y_mini, mini_batch_A)
+            grads = nn.backward_propagation(Y_mini)
         
-        loss = 0
-        gradient = 0 # test
-        for start_idx in range(0, X.shape[0], minibatchsize):
-            mini_batch_loss = 0
-            end_idx = min(start_idx + minibatchsize, X.shape[1])
-            X_batch = shuffled_data[start_idx:end_idx].T
-            y_batch = shuffled_labels[start_idx:end_idx]
-
-            A, caches = NN.forward_propagation(X_batch)
-            mini_batch_loss += NN.compute_nll_loss(y_batch)
-            NN.backward_propagation(y_batch)
-            
-            # Update weights and biases
-            for l in range(1, NN.num_layers+1):
-                NN.parameters['W' + str(l)] -= learning_rate * NN.grads['dW' + str(l)]
-                NN.parameters['b' + str(l)] -= learning_rate * NN.grads['db' + str(l)] 
-
-            loss += mini_batch_loss
-        
-
-        # Store the loss for this iteration after going through all the batches
-        loss = loss / ((X.shape[1] / minibatchsize))
+            for layer in range(1, nn.num_layers+1):
+                nn.parameters['W' + str(layer)] -= learning_rate * grads['dW' + str(layer)]
+                nn.parameters['b' + str(layer)] -= learning_rate * grads['db' + str(layer)]
+        loss = current_loss / (X.shape[1] / mini_batch_size)
         losses.append(loss)
-
-    if DEBUG_WEIGHTS:
-        for key in NN.parameters:
-            print("SGD end:", "weight of ",key, ":\n", NN.parameters[key])
+        print(f"Iteration: {iter}, Loss: {loss}")
+    
+    plt.figure(figsize=(10, 6))
+    plt.plot([i for i in range(num_iterations)], losses)
+    plt.xlabel('iteration')
+    plt.ylabel('Loss')
+    plt.title('Loss over iterations')
+    plt.grid(True)
+    plt.show()
+            
         
-        for key in NN.parameters:
-            weights_difference_documnetation = initial_weights[key] - NN.parameters[key]
-            print("Difference in weights ", key, ":\n", weights_difference_documnetation)
-        
-    return NN, losses
+
+def main():
+
+    mat = loadmat('SwissRollData.mat')
+    X = np.array(mat['Yt'])
+    Y = np.array(mat['Ct']).T
+
+    input_size = X.shape[0]
+    hidden_size = 6
+    output_size = Y.shape[1]
+    num_layers = 4
+
+    #works great with 4 layers and 6 hidden units, 0.1 learning rate, 100 iterations
+    nn = NN(input_size, hidden_size, output_size, num_layers)
+    NNSGD(nn, X, Y)
+    
+    #testing on the validation set
+    X = np.array(mat['Yv'])
+    Y = np.array(mat['Cv']).T
+    A = nn.forward_propagation(X)
+    loss = nn.compute_loss(Y)
+    print(loss)
+
+    # preds = np.argmax(A, axis=1)
+    # true = np.argmax(Y, axis=1)
+    # diff = np.abs(preds - true)
+    # diff_indices = [i for i, x in enumerate(diff) if x == 1]
+    # print(f"Number of misclassified samples: {len(diff_indices)}")
+    # print("the indexes are: ", diff_indices)
+
+    print("Predicted: ", np.argmax(A, axis=1))
+    print("True: ", np.argmax(Y, axis=1))
+    print("Accuracy: ", np.mean(np.argmax(A, axis=1) == np.argmax(Y, axis=1)))
 
 
-#loading and preprocessing data
-mat = loadmat('SwissRollData.mat')
-X = np.array(mat['Yt'])
-Y = np.array(mat['Ct']).T
-Y = [int(i[1]) for i in Y]
-Y = np.array(Y)
-input_size = X.shape[0]  # Number of features
-num_samples = X.shape[1]  # Number of samples
+    
+    # full_gradient_check()
+    return
 
-#running the algorithm
-NN = NNinstance(input_size, output_size=2,num_layers=5)
-NN, losses = NNsgd(NN, X, Y, learning_rate=0.01, iterations=1000, minibatchsize=100, DEBUG_WEIGHTS = False)
+    X = np.array([[1, 2], [3, 4], [5, 6]]).T  # 3 samples, 2 features each
+    Y = np.array([[1, 0], [0, 1], [1, 0]])  # One-hot encoded labels for 3 samples, 2 classes
+    input_size = 2
+    hidden_size = 6
+    output_size = 2
+    num_layers = 6
+    nn = NN(input_size, hidden_size, output_size, num_layers)
+    A = nn.forward_propagation(X)
+    loss = nn.compute_loss(Y)
+    print(loss)
+    grads = nn.backward_propagation(Y)
+    print(grads)
 
-#testing on the validation set
-X_val = np.array(mat['Yv'])
-Y_val = np.array(mat['Cv']).T
-Y_val = [int(i[1]) for i in Y_val]
-Y_val = np.array(Y_val)
-A, caches = NN.forward_propagation(X_val)
-print("Predicted:" , A.argmax(axis=0))
-print("Actual:", Y_val)
-print("Accuracy:", np.mean(A.argmax(axis=0) == Y_val))
-print("Loss:", losses[-1])
-
-
-plt.plot(losses)
-plt.xlabel('Iteration')
-plt.ylabel('Cost')
-plt.title('Cost reduction over iterations using SGD')
-
-plt.show()
+main()

@@ -13,6 +13,12 @@ def gradient_test(X, Y, W, b, epsilons):
 
     linear_error = []
     quadratic_error = []
+    grad_W, grad_b = softmax_loss_grad(X, Y, W, b)
+    analytical_grad_W = np.dot(dW.flatten(), grad_W.flatten())
+    analytical_grad_b = np.dot(db.flatten(), grad_b.flatten())
+    total_analytical_grad = analytical_grad_W + analytical_grad_b
+
+    
     for epsilon in epsilons:
         # Perturb W and b
         W_perturbed = W + epsilon * dW
@@ -22,10 +28,7 @@ def gradient_test(X, Y, W, b, epsilons):
         perturbed_loss = softmax_loss(X, Y, W_perturbed, b_perturbed)
 
         # Analytical gradient
-        grad_W, grad_b = softmax_loss_grad(X, Y, W, b)
-        analytical_grad_W = np.dot(dW.flatten(), grad_W.flatten())
-        analytical_grad_b = np.dot(db.flatten(), grad_b.flatten())
-        total_analytical_grad = analytical_grad_W + analytical_grad_b
+        
 
         # Calculate differences
         linear_error.append(np.abs(perturbed_loss - original_loss))
