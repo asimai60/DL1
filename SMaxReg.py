@@ -31,7 +31,9 @@ def softmax_loss(X, Y, W, b):
     """
     s_value = softmax_function(X, W, b) #get the softmax output (samples, classes)
     log_likelihood_times_Y = np.log(s_value)*Y
-    return -np.sum(log_likelihood_times_Y) / X.shape[0] #return the softmax loss averaged over all samples in X ()
+    loss =  -np.sum(log_likelihood_times_Y, axis=1, keepdims=True)  #return the softmax loss averaged over all samples in X ()
+    loss = np.mean(loss)
+    return loss
 
 def softmax_loss_grad(X, Y, W, b):
     probabilities = softmax_function(X, W, b)
