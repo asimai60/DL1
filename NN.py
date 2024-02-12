@@ -82,7 +82,7 @@ class NN:
             A_prev = self.caches['A' + str(layer - 1)]
             Z = self.caches['Z' + str(layer)]
 
-            dW = np.dot((tanh_deriv(Z) * dZ), A_prev.T) # should we average this?
+            dW = np.dot((tanh_deriv(Z) * dZ), A_prev.T) 
             db = np.sum(tanh_deriv(Z) * dZ, axis=1, keepdims=True)
 
             grads['dW' + str(layer)] = dW
@@ -166,17 +166,7 @@ def last_layer_gradient_check(epsilon = 0.5):
         quadratic_error.append(np.abs(loss - original_loss - total_analytical_grad * epsilon))
         print(f"Epsilon: {epsilon}, Linear Error: {linear_error[-1]}, Quadratic Error: {quadratic_error[-1]}")
     
-    iterations = [i for i in range(1, len(epsilons) + 1)]
-    plt.figure(figsize=(10, 6))
-    plt.plot(iterations, linear_error, label='Linear Error')
-    plt.plot(iterations, quadratic_error, label='Quadratic Error')
-    plt.yscale('log')
-    plt.xlabel('iteration')
-    plt.ylabel('Error')
-    plt.title('last layer Gradient Test Errors (Including Bias)')
-    plt.legend()
-    plt.grid(True)
-    plt.show()
+    plot_errors(epsilons, linear_error, quadratic_error, "last layer Gradient Test Errors (Including Bias)")
 
     return
 
@@ -224,6 +214,10 @@ def full_gradient_check(epsilon = 0.5):
         for key in nn.parameters:
             nn.parameters[key] -= epsilon * pertrubations[key]
 
+    plot_errors(epsilons, linear_error, quadratic_error, "full network Gradient Test Errors")
+
+
+def plot_errors(epsilons, linear_error, quadratic_error, title):
     iterations = [i for i in range(1, len(epsilons) + 1)]
     plt.figure(figsize=(10, 6))
     plt.plot(iterations, linear_error, label='Linear Error')
@@ -231,12 +225,12 @@ def full_gradient_check(epsilon = 0.5):
     plt.yscale('log')
     plt.xlabel('iteration')
     plt.ylabel('Error')
-    plt.title('full network Gradient Test Errors')
+    plt.title(title)
     plt.legend()
     plt.grid(True)
     plt.show()
 
-def NNSGD(nn : NN, X, Y, learning_rate=0.1, num_iterations=100, mini_batch_size=30):
+def NNSGD(nn : NN, X, Y, learning_rate=0.1, num_iterations=100, mini_batch_size=30, RESULTS=True):
     losses = []
     for iter in range(num_iterations):
         indices = np.random.permutation(X.shape[1])
@@ -256,15 +250,17 @@ def NNSGD(nn : NN, X, Y, learning_rate=0.1, num_iterations=100, mini_batch_size=
                 nn.parameters['b' + str(layer)] -= learning_rate * grads['db' + str(layer)]
         loss = current_loss / (X.shape[1] / mini_batch_size)
         losses.append(loss)
-        print(f"Iteration: {iter}, Loss: {loss}")
+        if RESULTS:
+            print(f"Iteration: {iter}, Loss: {loss}")
     
-    plt.figure(figsize=(10, 6))
-    plt.plot([i for i in range(num_iterations)], losses)
-    plt.xlabel('iteration')
-    plt.ylabel('Loss')
-    plt.title('Loss over iterations')
-    plt.grid(True)
-    plt.show()
+    if RESULTS:
+        plt.figure(figsize=(10, 6))
+        plt.plot([i for i in range(num_iterations)], losses)
+        plt.xlabel('iteration')
+        plt.ylabel('Loss')
+        plt.title('Loss over iterations')
+        plt.grid(True)
+        plt.show()
             
         
 
@@ -307,15 +303,24 @@ def main():
                 Y = np.array(Y[indices[:200], :])
 
             if user_defined:
-                learning_rate = float(input("Enter the learning rate (enter for default): "))
-                num_iterations = int(input("Enter the number of iterations (enter for default): "))
-                mini_batch_size = int(input("Enter the mini batch size (enter for default): "))
-                if learning_rate == "":
+                learning_rate = input("Enter the learning rate (enter for default): ")
+                if learning_rate != "":
+                    learning_rate = float(learning_rate)
+                else:
                     learning_rate = 0.1
-                if num_iterations == "":
+
+                num_iterations = input("Enter the number of iterations (enter for default): ")
+                if num_iterations != "":
+                    num_iterations = int(num_iterations)
+                else:
                     num_iterations = 100
-                if mini_batch_size == "":
+                
+                mini_batch_size = input("Enter the mini batch size (enter for default): ")
+                if mini_batch_size != "":
+                    mini_batch_size = int(mini_batch_size)
+                else:
                     mini_batch_size = 30
+                
                 NNSGD(nn, X, Y, learning_rate, num_iterations, mini_batch_size)
             else:
                 NNSGD(nn, X, Y)
@@ -336,7 +341,7 @@ def main():
 
             print("Predicted: ", np.argmax(A, axis=1))
             print("True: ", np.argmax(Y, axis=1))
-            print("Accuracy: ", np.mean(np.argmax(A, axis=1) == np.argmax(Y, axis=1)))
+            print(f"Accuracy: {np.mean(np.argmax(A, axis=1) == np.argmax(Y, axis=1))*100}%")
             return
         else:
             full_gradient_check()

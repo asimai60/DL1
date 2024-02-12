@@ -11,3 +11,6 @@ test1.py
 
 # ignore oldNN folder
 oldNN/
+
+# ignore the results csv file
+results.csv
