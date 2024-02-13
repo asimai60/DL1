@@ -196,6 +196,44 @@ def plot_errors(epsilons, linear_error, quadratic_error, title):
     plt.legend()
     plt.grid(True)
     plt.show()
+
+
+def ResNNSGD(nn : ResNN, X, Y, learning_rate=0.1, num_iterations=100, mini_batch_size=30, RESULTS=True):
+    losses = []
+    for iter in range(num_iterations):
+        indices = np.random.permutation(X.shape[1])
+        shuffled_X = np.array(X[:, indices])
+        shuffled_Y = np.array(Y[indices, :])
+        current_loss = 0
+
+        for i in range(0, X.shape[1], mini_batch_size):
+            X_mini = shuffled_X[:, i:i+mini_batch_size]
+            Y_mini = shuffled_Y[i:i+mini_batch_size, :]
+           
+            mini_batch_A = nn.forward_propagation(X_mini)
+            current_loss += nn.compute_loss(Y_mini, mini_batch_A)
+            grads = nn.backward_propagation(Y_mini)
+        
+            for layer in range(1, nn.num_layers):
+                nn.parameters['W1_' + str(layer)] -= learning_rate * grads['dW1_' + str(layer)]
+                nn.parameters['W2_' + str(layer)] -= learning_rate * grads['dW2_' + str(layer)]
+                nn.parameters['b' + str(layer)] -= learning_rate * grads['db' + str(layer)]
+            nn.parameters['W' + str(nn.num_layers)] -= learning_rate * grads['dW' + str(nn.num_layers)]
+            nn.parameters['b' + str(nn.num_layers)] -= learning_rate * grads['db' + str(nn.num_layers)]
+
+        loss = current_loss / (X.shape[1] / mini_batch_size)
+        losses.append(loss)
+        if RESULTS:
+            print(f"Iteration: {iter}, Loss: {loss}")
+    
+    if RESULTS:
+        plt.figure(figsize=(10, 6))
+        plt.plot([i for i in range(num_iterations)], losses)
+        plt.xlabel('iteration')
+        plt.ylabel('Loss')
+        plt.title('Loss over iterations')
+        plt.grid(True)
+        plt.show()
     
 def main():
         X = np.array([[1, 2], [3, 4], [5, 6]]).T  # 3 samples, 2 features each
@@ -211,6 +249,29 @@ def main():
         print(grads)
 
         full_gradient_check()
+
+        mat = loadmat('SwissRollData.mat')
+        X = np.array(mat['Yt'])
+        Y = np.array(mat['Ct']).T
+
+        input_size = X.shape[0]
+        hidden_size = 6
+        
+        output_size = Y.shape[1]
+        num_layers = 3
+
+        nn = ResNN(input_size, output_size, hidden_size, num_layers)
+        ResNNSGD(nn, X, Y, learning_rate=0.1, num_iterations= 100, mini_batch_size=30, RESULTS=True)
+        X = np.array(mat['Yv'])
+        Y = np.array(mat['Cv']).T
+        A = nn.forward_propagation(X)
+        loss = nn.compute_loss(Y)
+        print(loss)
+
+
+        print("Predicted: ", np.argmax(A, axis=1))
+        print("True: ", np.argmax(Y, axis=1))
+        print(f"Accuracy: {np.mean(np.argmax(A, axis=1) == np.argmax(Y, axis=1))*100}%")
 
 if __name__ == "__main__":
     main()
