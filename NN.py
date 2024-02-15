@@ -95,9 +95,12 @@ class NN:
         self.grads = grads
         return grads
     
-    def hidden_layer_forward(self, A, layer,caches, perturb=None):
+    def hidden_layer_forward(self, A, layer,caches, perturb=None, epsilon = 0.5):
         W = self.parameters['W' + str(layer)]
         b = self.parameters['b' + str(layer)]
+        if perturb is not None:
+            W = W + epsilon * perturb['W']
+            b = b + epsilon * perturb['b']
         Z = np.dot(W, A) + b
         A = tanh(Z)
         caches['Z' + str(layer)] = Z
@@ -131,7 +134,7 @@ class NN:
         grads['dW' + str(self.num_layers)] = dW_last
         grads['db' + str(self.num_layers)] = db_last
         return grads
-
+    
 
 def last_layer_gradient_check(epsilon = 0.5):
     
@@ -171,6 +174,20 @@ def last_layer_gradient_check(epsilon = 0.5):
     return
 
 def hidden_layer_jacobian_check(epsilon = 0.5):
+    epsilons = [epsilon**(i+1) for i in range(10)]
+    X = np.array([[1, 2], [3, 4], [5, 6]]).T  # 3 samples, 2 features each
+    nn = NN(2, 2, 3, 3)
+    A, caches = nn.hidden_layer_forward(X, 1, {})
+    
+    jac_b = tanh_deriv(caches['Z1'])
+
+
+    v_w= np.random.randn(*nn.parameters['W1'].shape)
+    v_b= np.random.randn(*nn.parameters['b1'].shape)
+    v_w /= np.linalg.norm(v_w)
+    v_b /= np.linalg.norm(v_b)
+    pertrubations = {"W": v_w, "b": v_b}
+    
     return
 
 def full_gradient_check(epsilon = 0.5):
@@ -228,10 +245,13 @@ def plot_errors(epsilons, linear_error, quadratic_error, title):
     plt.title(title)
     plt.legend()
     plt.grid(True)
+    plt.savefig('result_graphs/Whole_regular_NN_Gradient_Test.png')
     plt.show()
 
-def NNSGD(nn : NN, X, Y, learning_rate=0.1, num_iterations=100, mini_batch_size=30, RESULTS=True):
+def NNSGD(nn : NN, X, Y, learning_rate=0.1, num_iterations=100, mini_batch_size=30, RESULTS=True, path = 'SwissRollData'):
     losses = []
+    accuracies = []
+    test_accuracies = []
     for iter in range(num_iterations):
         indices = np.random.permutation(X.shape[1])
         shuffled_X = np.array(X[:, indices])
@@ -252,6 +272,18 @@ def NNSGD(nn : NN, X, Y, learning_rate=0.1, num_iterations=100, mini_batch_size=
         losses.append(loss)
         if RESULTS:
             print(f"Iteration: {iter}, Loss: {loss}")
+            nn.forward_propagation(X)
+            A = nn.A
+            accuracy = np.mean(np.argmax(A, axis=1) == np.argmax(Y, axis=1))
+            accuracies.append(accuracy)
+
+            mat = loadmat(f'{path}.mat')
+            X_test = np.array(mat['Yv'])
+            Y_test = np.array(mat['Cv']).T
+            A = nn.forward_propagation(X_test)
+            test_accuracy = np.mean(np.argmax(A, axis=1) == np.argmax(Y_test, axis=1))
+            test_accuracies.append(test_accuracy)
+
     
     if RESULTS:
         plt.figure(figsize=(10, 6))
@@ -260,6 +292,46 @@ def NNSGD(nn : NN, X, Y, learning_rate=0.1, num_iterations=100, mini_batch_size=
         plt.ylabel('Loss')
         plt.title('Loss over iterations')
         plt.grid(True)
+        # plt.savefig('result_graphs/Whole_regular_NN_Loss.png')
+        plt.show()
+
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 6))
+        ax1.plot([i for i in range(num_iterations)], accuracies)
+        ax1.set_xlabel('iteration')
+        ax1.set_ylabel('Accuracy')
+        ax1.set_title('Train Accuracy over iterations')
+        ax1.grid(True)
+
+        ax2.plot([i for i in range(num_iterations)], test_accuracies)
+        ax2.set_xlabel('iteration')
+        ax2.set_ylabel('Accuracy')
+        ax2.set_title('Test Accuracy over iterations')
+        ax2.grid(True)
+
+        plt.tight_layout()
+        plt.show()
+
+
+        return
+
+        plt.figure(figsize=(10, 6))
+        plt.plot([i for i in range(num_iterations)], accuracies)
+        plt.xlabel('iteration')
+        plt.ylabel('Accuracy')
+        plt.title('Train Accuracy over iterations')
+        plt.grid(True)
+        # plt.savefig('result_graphs/Whole_regular_NN_Train_Accuracy.png')
+        plt.show()
+
+
+        plt.figure(figsize=(10, 6))
+        plt.plot([i for i in range(num_iterations)], test_accuracies)
+        plt.xlabel('iteration')
+        plt.ylabel('Accuracy')
+        plt.title('Test Accuracy over iterations')
+        plt.grid(True)
+        # plt.savefig('result_graphs/Whole_regular_NN_Test_Accuracy.png')
         plt.show()
             
         
@@ -321,9 +393,9 @@ def main():
                 else:
                     mini_batch_size = 30
                 
-                NNSGD(nn, X, Y, learning_rate, num_iterations, mini_batch_size)
+                NNSGD(nn, X, Y, learning_rate, num_iterations, mini_batch_size, path=path)
             else:
-                NNSGD(nn, X, Y)
+                NNSGD(nn, X, Y, path=path)
             
             #testing on the validation set
             X = np.array(mat['Yv'])

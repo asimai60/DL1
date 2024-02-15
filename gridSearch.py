@@ -1,8 +1,11 @@
 import numpy as np
 from NN import *
+from resNN import *
 from scipy.io import loadmat
 import itertools
 import csv
+
+
 
 # Load the dataset
 mat = loadmat('SwissRollData.mat')
@@ -12,11 +15,20 @@ Y = np.array(mat['Ct']).T
 input_size = X.shape[0]
 output_size = Y.shape[1]
 # Define the hyperparameters
-hidden_layer_size = [np.arange(3,10,3)]
-num_layers = [np.arange(3,6,1)]
-learning_rate = [np.arange(0.01,1,0.1)]
-num_iterations = [np.arange(100,500,100)]
-mini_batch_size = [np.arange(10,200,20)]
+
+rnn = input("Enter 1 for RNN and 0 for NN: ")
+if rnn == '1':
+    hidden_layer_size = [np.arange(5,9,1)]
+    num_layers = [np.arange(6,14,1)]
+    learning_rate = [np.arange(0.001,0.015,0.001)]
+    num_iterations = [np.arange(100,250,50)]
+    mini_batch_size = [np.arange(20,50,10)]
+else:
+    hidden_layer_size = [np.arange(3,10,3)]
+    num_layers = [np.arange(3,6,1)]
+    learning_rate = [np.arange(0.01,1,0.1)]
+    num_iterations = [np.arange(100,500,100)]
+    mini_batch_size = [np.arange(10,200,20)]
 
 # Create a dictionary to store the hyperparameters
 hyperparameters = {'hidden_layer_size':hidden_layer_size, 'num_layers':num_layers, 'learning_rate':learning_rate, 'num_iterations':num_iterations, 'mini_batch_size':mini_batch_size}
@@ -31,8 +43,12 @@ best_accuracy = 0
 print('Total number of combinations:', )
 for i in range(len(all_possible_combinations)):
     print('Training model with hyperparameters:', all_possible_combinations[i], f'({i+1}/{len(all_possible_combinations)})')
-    nn = NN(input_size, output_size, all_possible_combinations[i][0], all_possible_combinations[i][1])
-    NNSGD(nn, X, Y, all_possible_combinations[i][2], all_possible_combinations[i][3], all_possible_combinations[i][4], False)
+    if rnn == '1':
+        nn = ResNN(input_size, output_size, all_possible_combinations[i][0], all_possible_combinations[i][1])
+        ResNNSGD(nn, X, Y, all_possible_combinations[i][2], all_possible_combinations[i][3], all_possible_combinations[i][4], False)
+    else:
+        nn = NN(input_size, output_size, all_possible_combinations[i][0], all_possible_combinations[i][1])    
+        NNSGD(nn, X, Y, all_possible_combinations[i][2], all_possible_combinations[i][3], all_possible_combinations[i][4], False)
     print('Training complete')
 
     X = np.array(mat['Yv'])
@@ -56,10 +72,15 @@ for i in range(len(all_possible_combinations)):
     print('-------------------------------------------------')
 
 reults.sort(key=lambda x: x[2], reverse=True)
-with open('results.csv', 'w', newline='') as file:
-    writer = csv.writer(file)
-    writer.writerow(["Hyperparameters", "Loss", "Accuracy"])
-    writer.writerows(reults)
-
+if rnn == '1':
+    with open('ResNN_results.csv', 'w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(["Hyperparameters", "Loss", "Accuracy"])
+        writer.writerows(reults)
+else:
+    with open('results.csv', 'w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(["Hyperparameters", "Loss", "Accuracy"])
+        writer.writerows(reults)
 
     

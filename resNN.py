@@ -85,8 +85,6 @@ class ResNN:
             W2 = self.parameters['W2_' + str(layer)]
 
             dW1 = np.dot((tanh_deriv(Z_1) * np.dot(W2.T, dZ)),A2_prev.T)
-            # print(dW1.shape)
-            # print(dW1)
             dW2 = np.dot(dZ, tanh(Z_1).T)
             db = np.sum(tanh_deriv(Z_1) * np.dot(W2.T, dZ), axis=1, keepdims=True)
 
@@ -131,8 +129,11 @@ class ResNN:
 
 def full_gradient_check(epsilon = 0.5):
     epsilons = [epsilon**(i+1) for i in range(10)]
-    X = np.array([[1, 2], [3, 4], [5, 6]]).T  # 3 samples, 2 features each
-    Y = np.array([[1, 0], [0, 1], [1, 0]])  # One-hot encoded labels for 3 samples, 2 classes
+
+    mat = loadmat('SwissRollData.mat')
+    X = np.array(mat['Yt'])
+    Y = np.array(mat['Ct']).T
+
     input_size = 2
     hidden_size = 3
     output_size = 2
@@ -181,7 +182,7 @@ def full_gradient_check(epsilon = 0.5):
         for key in nn.parameters:
             nn.parameters[key] -= epsilon * pertrubations[key]
 
-    plot_errors(epsilons, linear_error, quadratic_error, "full network Gradient Test Errors")
+    plot_errors(epsilons, linear_error, quadratic_error, "full residual network Gradient Test Errors")
 
 
 def plot_errors(epsilons, linear_error, quadratic_error, title):
@@ -195,11 +196,16 @@ def plot_errors(epsilons, linear_error, quadratic_error, title):
     plt.title(title)
     plt.legend()
     plt.grid(True)
+    # plt.savefig('result_graphs/ResNN_Gradient_Test.png')
     plt.show()
 
 
-def ResNNSGD(nn : ResNN, X, Y, learning_rate=0.1, num_iterations=100, mini_batch_size=30, RESULTS=True):
+def ResNNSGD(nn : ResNN, X, Y, learning_rate=0.1, num_iterations=100, mini_batch_size=30, RESULTS=True, path="SwissRollData"):
     losses = []
+    accuracies = []
+    test_accuracies = []
+
+
     for iter in range(num_iterations):
         indices = np.random.permutation(X.shape[1])
         shuffled_X = np.array(X[:, indices])
@@ -225,6 +231,17 @@ def ResNNSGD(nn : ResNN, X, Y, learning_rate=0.1, num_iterations=100, mini_batch
         losses.append(loss)
         if RESULTS:
             print(f"Iteration: {iter}, Loss: {loss}")
+            nn.forward_propagation(X)
+            A = nn.A
+            accuracy = np.mean(np.argmax(A, axis=1) == np.argmax(Y, axis=1))
+            accuracies.append(accuracy)
+
+            mat = loadmat(f'{path}.mat')
+            X_test = np.array(mat['Yv'])
+            Y_test = np.array(mat['Cv']).T
+            A = nn.forward_propagation(X_test)
+            test_accuracy = np.mean(np.argmax(A, axis=1) == np.argmax(Y_test, axis=1))
+            test_accuracies.append(test_accuracy)
     
     if RESULTS:
         plt.figure(figsize=(10, 6))
@@ -233,35 +250,57 @@ def ResNNSGD(nn : ResNN, X, Y, learning_rate=0.1, num_iterations=100, mini_batch
         plt.ylabel('Loss')
         plt.title('Loss over iterations')
         plt.grid(True)
+        # plt.savefig('result_graphs/ResNN_Loss_over_iterations.png')
         plt.show()
+
+        plt.figure(figsize=(10, 6))
+        plt.plot([i for i in range(num_iterations)], accuracies)
+        plt.xlabel('iteration')
+        plt.ylabel('Accuracy')
+        plt.title('Train Accuracy over iterations')
+        plt.grid(True)
+        # plt.savefig('result_graphs/Whole_residual_NN_Train_Accuracy.png')
+        plt.show()
+
+
+        plt.figure(figsize=(10, 6))
+        plt.plot([i for i in range(num_iterations)], test_accuracies)
+        plt.xlabel('iteration')
+        plt.ylabel('Accuracy')
+        plt.title('Test Accuracy over iterations')
+        plt.grid(True)
+        # plt.savefig('result_graphs/Whole_residual_NN_Test_Accuracy.png')
+        plt.show()
+
+
     
 def main():
-        X = np.array([[1, 2], [3, 4], [5, 6]]).T  # 3 samples, 2 features each
-        Y = np.array([[1, 0], [0, 1], [1, 0]])  # One-hot encoded labels for 3 samples, 2 classes
-        input_size = 2
-        hidden_size = 6
-        output_size = 2
-        num_layers = 2
-        nn = ResNN(input_size, output_size, hidden_size,  num_layers)
-        A = nn.forward_propagation(X)
-        # print(A)
-        grads = nn.backward_propagation(Y)
-        print(grads)
+        # X = np.array([[1, 2], [3, 4], [5, 6]]).T  # 3 samples, 2 features each
+        # Y = np.array([[1, 0], [0, 1], [1, 0]])  # One-hot encoded labels for 3 samples, 2 classes
+        # input_size = 2
+        # hidden_size = 6
+        # output_size = 2
+        # num_layers = 2
+        # nn = ResNN(input_size, output_size, hidden_size,  num_layers)
+        # A = nn.forward_propagation(X)
+        # grads = nn.backward_propagation(Y)
+        
 
-        full_gradient_check()
+        # full_gradient_check()
+        
 
         mat = loadmat('SwissRollData.mat')
         X = np.array(mat['Yt'])
         Y = np.array(mat['Ct']).T
 
         input_size = X.shape[0]
-        hidden_size = 6
+        hidden_size = 7
         
         output_size = Y.shape[1]
-        num_layers = 3
+        num_layers = 12
 
         nn = ResNN(input_size, output_size, hidden_size, num_layers)
-        ResNNSGD(nn, X, Y, learning_rate=0.1, num_iterations= 100, mini_batch_size=30, RESULTS=True)
+        ResNNSGD(nn, X, Y, learning_rate=0.004, num_iterations= 200, mini_batch_size=40, RESULTS=True)
         X = np.array(mat['Yv'])
         Y = np.array(mat['Cv']).T
         A = nn.forward_propagation(X)

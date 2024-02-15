@@ -44,9 +44,10 @@ def gradient_test(X, Y, W, b, epsilons):
     plt.yscale('log')
     plt.xlabel('iteration')
     plt.ylabel('Error')
-    plt.title('Gradient Test Errors (Including Bias)')
+    plt.title('SoftMax Gradient Test Errors (Including Bias)')
     plt.legend()
     plt.grid(True)
+    plt.savefig('result_graphs/SoftMax_Gradient_Test.png')
     plt.show()
 
 # Example data (very simple and small for demonstration purposes)

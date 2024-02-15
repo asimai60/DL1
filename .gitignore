@@ -14,3 +14,4 @@ oldNN/
 
 # ignore the results csv file
 results.csv
+ResNN_results.csv
